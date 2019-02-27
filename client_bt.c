@@ -39,6 +39,7 @@ void print_iter(DBusMessageIter *piter)
         {   
           char *val;
           dbus_message_iter_get_basic (piter, &val);
+          //if (strncmp(key,"Name",4) != 0)
           printf ("[%s]\n", val);
         }   
         break;
@@ -252,7 +253,10 @@ void process_DeviceFound(DBusMessage* msg)
                    {   
                      char *val;
                      dbus_message_iter_get_basic (&dict_entry_var_iter, &val);
-                     printf ("%s:[%s]\r\n", key ,val);
+                     if (strncmp(key,"Name",4) != 0)
+                       printf ("%s:[%s]\r\n", key ,val);
+                     else
+                       printf ("-------------------> %s:[%s]\r\n", key ,val);
                    }   
                    break;
                    case DBUS_TYPE_INT16:
@@ -357,6 +361,32 @@ void process_bt_msg(DBusConnection * connection)
     dbus_message_unref(msg);  
 }
 
+void create_device(DBusConnection * connection, const char* dmac)
+{
+    DBusMessage* msg;
+    msg = dbus_message_new_method_call("org.bluez", // target service name
+         objpath, // object to call on ex: /org/bluez/945/hci0
+         "org.bluez.Adapter", // interface to call on
+         "CreateDevice"); // method name
+   if (NULL == msg) {
+      fprintf(stderr, "Message Null\n");
+      exit(1);
+   }
+   DBusMessageIter iter;
+   dbus_message_iter_init_append(msg, &iter);
+   if (!dbus_message_iter_append_basic(&iter, DBUS_TYPE_STRING, &dmac)) { 
+      fprintf(stderr, "Out Of Memory!\n"); 
+      exit(1);
+   }   
+   
+   DBusMessage *message, *reply;
+   reply = dbus_connection_send_with_reply_and_block(connection,
+                                                        msg, -1, NULL);
+
+   dbus_message_unref(msg);
+   if (!reply) return;
+   dbus_message_unref(reply);
+}
 struct termios orig_termios;
 void reset_terminal_mode()
 {
@@ -365,6 +395,7 @@ void reset_terminal_mode()
 }
 
 int main(int argc, char** argv){
+  const char* device_mac = "58:7F:57:BE:4B:DD";
   if (argc < 2){
     printf("Neet to assign obj path first\r\n");
     printf("EX: [/org/bluez/945/hci0]\r\n");
@@ -419,6 +450,14 @@ int main(int argc, char** argv){
           case 'b':
             printf("bt_off\r\n");
             bt_off(conn);
+          break;
+          case 'c':
+            printf("create_device\r\n");
+            create_device(conn, device_mac);
+          break;
+          case 'd':
+            printf("delete_device\r\n");
+            //create_device(conn, device_mac);
           break;
           default:
           break;
